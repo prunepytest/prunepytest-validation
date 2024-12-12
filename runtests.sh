@@ -10,7 +10,9 @@ if ! command -v uv ; then
   python -m pip install uv
 fi
 
-prunepy=${PRUNEPY_INSTALL:-prunepy}
+
+# default to most recent version
+prunepytest=${PRUNEPYTEST_INSTALL:-prunepytest}
 
 for repo in repos/${1:-*} ; do
     echo "--- validating: $repo"
@@ -43,7 +45,7 @@ for repo in repos/${1:-*} ; do
       fi
 
       # ensure we have prunepytest installed
-      uv pip install "${prunepy}" --force-reinstall
+      uv pip install "${prunepytest}" --force-reinstall
 
       # save graph in pre-test validation for use at test-time
       prune_args=(--prune-graph graph.bin)
