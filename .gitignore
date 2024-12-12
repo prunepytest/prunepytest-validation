@@ -1,2 +1,4 @@
+.idea
 .venv
 constraints.txt
+__pycache__
