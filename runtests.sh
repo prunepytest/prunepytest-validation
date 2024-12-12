@@ -25,7 +25,7 @@ for repo in repos/${1:-*} ; do
 
         # quick repo clone
         rm -rf "$d"
-        git clone --filter=tree:0 "${clone_args[@]}" "$d"
+        git clone --filter=tree:0 --single-branch "${clone_args[@]}" "$d"
 
         cd "$d"
 
