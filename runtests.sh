@@ -18,7 +18,7 @@ for repo in repos/${1:-*} ; do
     # use subshell to avoid cross-contamination
     (
       cd "$repo"
-      d=$(basename "$repo")
+      d=".repo"
 
       if [[ "${DIRTY:-}" != "1" ]] ; then
         clone_args=($(cat repo_url))
