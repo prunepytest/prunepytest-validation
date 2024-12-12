@@ -12,13 +12,7 @@ fi
 
 prunepy=${PRUNEPY_INSTALL:-prunepy}
 
-# ensure we constrain pytest version properly for setup.sh invocation
-cat - > constraints.txt <<EOF
-pytest~=${1:-8.3}
-EOF
-export UV_CONSTRAINT=$(pwd)/constraints.txt
-
-for repo in repos/${2:-*} ; do
+for repo in repos/${1:-*} ; do
     echo "--- validating: $repo"
 
     # use subshell to avoid cross-contamination
@@ -48,8 +42,7 @@ for repo in repos/${2:-*} ; do
         export PATH=$(pwd)/.venv/bin:$PATH
       fi
 
-      # ensure we have pytest and prunepytest installed
-      uv pip install "pytest~=$1"
+      # ensure we have prunepytest installed
       uv pip install "${prunepy}" --force-reinstall
 
       # save graph in pre-test validation for use at test-time

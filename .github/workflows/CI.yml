@@ -15,17 +15,10 @@ jobs:
       matrix:
         versions:
           - python: "3.9"
-            pytest: "7.2.0"
-          - python: "3.9"
-            pytest: "7.4.0"
           - python: "3.10"
-            pytest: "8.0.0"
           - python: "3.11"
-            pytest: "8.3"
           - python: "3.12"
-            pytest: "8.3"
           - python: "3.13"
-            pytest: "8.3"
         platform:
           - runner: ubuntu-latest
             target: x86_64
@@ -36,5 +29,5 @@ jobs:
           python-version: ${{ matrix.versions.python }}
       - name: tests
         run: |
-          ./runtests.sh ${{ matrix.versions.pytest }}
+          ./runtests.sh
 
