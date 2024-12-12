@@ -1,46 +1,72 @@
 #!/bin/bash
 
-set -ex -o pipefail
+set -x -eu -o pipefail
 
-python3 -m venv .venv
-source .venv/bin/activate
+# install uv locally if not already available
+if ! command -v uv ; then
+  echo "--- installing uv locally"
+  python3 -m venv .venv
+  export PATH=$(pwd)/.venv/bin:$PATH
+  python -m pip install uv
+fi
 
-python3 -m pip install "pytest~=$1"
-python3 -m pip install prunepytest
+prunepy=${PRUNEPY_INSTALL:-prunepy}
 
+# ensure we constrain pytest version properly for setup.sh invocation
+cat - > constraints.txt <<EOF
+pytest~=${1:-8.3}
+EOF
+export UV_CONSTRAINT=$(pwd)/constraints.txt
 
-for repo in repos/* ; do
-    echo "validating: $repo"
-    
+for repo in repos/${2:-*} ; do
+    echo "--- validating: $repo"
+
+    # use subshell to avoid cross-contamination
     (
-    cd "$repo"
-    d=$(basename "$repo")
-    url=$(cat repo_url)
+      cd "$repo"
+      d=$(basename "$repo")
 
-    rm -rf "$d"
-    git clone --filter=tree:0 "$url" "$d"
+      if [[ "${DIRTY:-}" != "1" ]] ; then
+        clone_args=($(cat repo_url))
 
-    cd "$d"
+        # quick repo clone
+        rm -rf "$d"
+        git clone --filter=tree:0 "${clone_args[@]}" "$d"
 
-    if [ -x ../setup.sh ] ; then
-        ../setup.sh
-    fi
+        cd "$d"
 
-    hook_args=()
-    if [ -f "../hook.py" ] ; then
-        hook_arg+=(-h ../hook.py)
-    fi
+        # venv setup
+        uv venv .venv --seed
+        export PATH=$(pwd)/.venv/bin:$PATH
 
-    echo "pre-test validation"
-    python3 -m prunepytest.validator ${hook_args[@]}
+        # NB: for some packages, this might recreate the venv...
+        if [ -x ../setup.sh ] ; then
+            ../setup.sh
+        fi
+      else
+        cd "$d"
+        export PATH=$(pwd)/.venv/bin:$PATH
+      fi
 
-    echo "test-time validation"
-    if [ -x ../runtests.sh ] ; then
-        ../runtests.sh
-    else
-        pytest --prune --prune-no-select
-    fi
+      # ensure we have pytest and prunepytest installed
+      uv pip install "pytest~=$1"
+      uv pip install "${prunepy}" --force-reinstall
+
+      # save graph in pre-test validation for use at test-time
+      prune_args=(--prune-graph graph.bin)
+      if [ -f "../hook.py" ] ; then
+          prune_args+=(--prune-hook ../hook.py)
+      fi
+
+      echo "pre-test validation"
+      python3 -m prunepytest.validator "${prune_args[@]}"
+
+      echo "test-time validation"
+      pytest_args=(--prune --prune-no-select "${prune_args[@]}")
+      if [ -x ../runtests.sh ] ; then
+          ../runtests.sh "${pytest_args[@]}"
+      else
+          pytest "${pytest_args[@]}"
+      fi
     )
-
 done
-
