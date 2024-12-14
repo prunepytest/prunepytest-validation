@@ -1,8 +1,8 @@
 from typing import AbstractSet, Mapping
 
-from prunepytest.api import ZeroConfHook
+from prunepytest.api import DefaultHook
 
-class PydanticPruneHook(ZeroConfHook):
+class PydanticPruneHook(DefaultHook):
     def dynamic_dependencies(self) -> Mapping[str, AbstractSet[str]]:
         return {
             # this import happens via entrypoint registered at install time...

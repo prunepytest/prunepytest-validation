@@ -1,8 +1,8 @@
 from typing import AbstractSet, Mapping
 
-from prunepytest.api import ZeroConfHook
+from prunepytest.api import DefaultHook
 
-class PydanticPruneHook(ZeroConfHook):
+class PydanticPruneHook(DefaultHook):
     def include_typechecking(self) -> bool:
         return True
 
