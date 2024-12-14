@@ -1,3 +1,2 @@
 #!/bin/bash
-
-make install-testing
+make install
