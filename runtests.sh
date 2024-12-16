@@ -2,6 +2,10 @@
 
 set -x -eu -o pipefail
 
+readonly abs_dir=$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd)
+
+cd "${abs_dir}"
+
 # install uv locally if not already available
 if ! command -v uv ; then
   echo "--- installing uv locally"
@@ -10,10 +14,10 @@ if ! command -v uv ; then
   python -m pip install uv
 fi
 
-
 # default to most recent version
 prunepytest=${PRUNEPYTEST_INSTALL:-prunepytest}
 
+# TODO: sort input folders for predictable ordering
 for repo in repos/${1:-*} ; do
     echo "--- validating: $repo"
 
@@ -33,7 +37,7 @@ for repo in repos/${1:-*} ; do
 
         # venv setup
         uv venv .venv --seed
-        export PATH=$(pwd)/.venv/bin:$PATH
+        source .venv/bin/activate
 
         # NB: for some packages, this might recreate the venv...
         if [ -x ../setup.sh ] ; then
@@ -41,11 +45,25 @@ for repo in repos/${1:-*} ; do
         fi
       else
         cd "$d"
-        export PATH=$(pwd)/.venv/bin:$PATH
+        source .venv/bin/activate
       fi
 
       # ensure we have prunepytest installed
-      uv pip install "${prunepytest}" --force-reinstall
+      uv pip install ${prunepytest} --force-reinstall
+
+      if [[ "${PY_COVERAGE:-}" == "1" ]] ; then
+        uv pip install slipcover
+
+        pyver=$(python -c 'import sys ; print(".".join(str(v) for v in sys.version_info[0:2]))')
+        libpath=".venv/lib/python$pyver"
+
+        runpy=(python3 -m slipcover)
+        runpy+=(--source $libpath/site-packages/prunepytest)
+        runpy+=(--json --out cov.json)
+        runpy+=(-m)
+      else
+        runpy=(python3 -m)
+      fi
 
       # save graph in pre-test validation for use at test-time
       prune_args=(--prune-graph graph.bin)
@@ -54,14 +72,32 @@ for repo in repos/${1:-*} ; do
       fi
 
       echo "pre-test validation"
-      python3 -m prunepytest.validator "${prune_args[@]}"
+      "${runpy[@]}" prunepytest.validator "${prune_args[@]}"
+
+      if [[ "${PY_COVERAGE:-}" == "1" ]] ; then
+        mv cov.json cov.pretest.json
+      fi
 
       echo "test-time validation"
       pytest_args=(--prune --prune-no-select "${prune_args[@]}")
       if [ -x ../runtests.sh ] ; then
-          ../runtests.sh "${pytest_args[@]}"
+        # bash handling of quotes in the output of a subprocess is hella weird...
+        eval "${runpy[@]} $(../runtests.sh) ${pytest_args[@]}"
       else
-          pytest "${pytest_args[@]}"
+        "${runpy[@]}" pytest "${pytest_args[@]}"
       fi
     )
 done
+
+if [[ "${PY_COVERAGE:-}" == "1" ]] ; then
+  echo
+  echo "--- merging python coverage data"
+
+  # NB: we're just using the last subfolder venv we activated
+  # which is guaranteed to have slipcover installed if we're collecting coverage data
+  python3 -m slipcover \
+    --out "${PY_COVERAGE_OUT}" \
+    --merge \
+    repos/*/.repo/cov.json \
+    repos/*/.repo/cov.pretest.json
+fi
