@@ -48,13 +48,21 @@ for repo in repos/${1:-*} ; do
         source .venv/bin/activate
       fi
 
+      pyver=$(python -c 'import sys ; print(".".join(str(v) for v in sys.version_info[0:2]))')
+      pyminor=$(cut -d. -f2 <<<"$pyver")
+
+      if [[ -f ../maxpyver ]] && (( $pyminor > $(cat ../maxpyver) )); then
+        echo "incompatible python version ($pyver). skipping..."
+        # exit subshell, so jump to next iteration of the loop
+        exit
+      fi
+
       # ensure we have prunepytest installed
       uv pip install ${prunepytest} --force-reinstall
 
       if [[ "${PY_COVERAGE:-}" == "1" ]] ; then
         uv pip install slipcover
 
-        pyver=$(python -c 'import sys ; print(".".join(str(v) for v in sys.version_info[0:2]))')
         libpath=".venv/lib/python$pyver"
 
         runpy=(python3 -m slipcover)
