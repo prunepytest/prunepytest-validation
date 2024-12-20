@@ -88,11 +88,11 @@ for repo in repos/${1:-*} ; do
 
       echo "test-time validation"
       pytest_args=(--prune --prune-no-select "${prune_args[@]}")
+      export PYTEST_ADDOPTS="${pytest_args[@]}"
       if [ -x ../runtests.sh ] ; then
-        # bash handling of quotes in the output of a subprocess is hella weird...
-        eval "${runpy[@]} $(../runtests.sh) ${pytest_args[@]}"
+        ../runtests.sh
       else
-        "${runpy[@]}" pytest "${pytest_args[@]}"
+        "${runpy[@]}" pytest
       fi
     )
 done
