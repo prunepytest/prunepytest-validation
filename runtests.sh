@@ -4,14 +4,17 @@ set -x -eu -o pipefail
 
 readonly abs_dir=$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd)
 
+readonly pymin=${PYMINOR:-}
+readonly python=python3${pymin}
+
 cd "${abs_dir}"
 
 # install uv locally if not already available
 if ! command -v uv ; then
   echo "--- installing uv locally"
-  python3 -m venv .venv
+  ${python} -m venv .venv
   export PATH=$(pwd)/.venv/bin:$PATH
-  python -m pip install uv
+  ${python} -m pip install uv
 fi
 
 # default to most recent version
@@ -36,7 +39,11 @@ for repo in repos/${1:-*} ; do
         cd "$d"
 
         # venv setup
-        uv venv .venv --seed
+        if [[ -n "${PYMINOR}" ]] ; then
+          uv venv --python 3${PYMINOR} .venv --seed
+        else
+          uv venv .venv --seed
+        fi
         source .venv/bin/activate
 
         # NB: for some packages, this might recreate the venv...
@@ -48,7 +55,7 @@ for repo in repos/${1:-*} ; do
         source .venv/bin/activate
       fi
 
-      pyver=$(python -c 'import sys ; print(".".join(str(v) for v in sys.version_info[0:2]))')
+      pyver=$(${python} -c 'import sys ; print(".".join(str(v) for v in sys.version_info[0:2]))')
       pyminor=$(cut -d. -f2 <<<"$pyver")
 
       if [[ -f ../maxpyver ]] && (( $pyminor > $(cat ../maxpyver) )); then
@@ -65,12 +72,12 @@ for repo in repos/${1:-*} ; do
 
         libpath=".venv/lib/python$pyver"
 
-        runpy=(python3 -m slipcover)
+        runpy=(${python} -m slipcover)
         runpy+=(--source $libpath/site-packages/prunepytest)
         runpy+=(--json --out cov.json)
         runpy+=(-m)
       else
-        runpy=(python3 -m)
+        runpy=(${python} -m)
       fi
 
       # save graph in pre-test validation for use at test-time
@@ -103,7 +110,7 @@ if [[ "${PY_COVERAGE:-}" == "1" ]] ; then
 
   # NB: we're just using the last subfolder venv we activated
   # which is guaranteed to have slipcover installed if we're collecting coverage data
-  python3 -m slipcover \
+  ${python} -m slipcover \
     --out "${PY_COVERAGE_OUT}" \
     --merge \
     repos/*/.repo/cov.json \
