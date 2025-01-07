@@ -20,8 +20,15 @@ fi
 # default to most recent version
 prunepytest=${PRUNEPYTEST_INSTALL:-prunepytest}
 
+if [[ -n "${1:-}" ]] ; then
+  repos=(repos/${1})
+else
+  # default omits pandas because its test suite is slow and unreliable
+  repos=(repos/mypy repos/pydantic repos/pydantic.v1 repos/tomli)
+fi
+
 # TODO: sort input folders for predictable ordering
-for repo in repos/${1:-*} ; do
+for repo in "${repos[@]}" ; do
     echo "--- validating: $repo"
 
     # use subshell to avoid cross-contamination
@@ -30,7 +37,9 @@ for repo in repos/${1:-*} ; do
       cd "$repo"
       d=".repo"
 
-      if [[ "${DIRTY:-}" != "1" ]] ; then
+      if [[ "${DIRTY:-}" == "1" ]] && [[ -d "$d/.venv" ]]; then
+        cd "$d"
+      else
         clone_args=($(cat repo_url))
 
         # quick repo clone
@@ -45,8 +54,6 @@ for repo in repos/${1:-*} ; do
         else
           uv venv .venv --seed
         fi
-      else
-        cd "$d"
       fi
 
       source .venv/bin/activate
@@ -60,11 +67,9 @@ for repo in repos/${1:-*} ; do
         exit
       fi
 
-      if [[ "${DIRTY:-}" != "1" ]] ; then
-        # NB: for some packages, this might recreate the venv...
-        if [ -x ../setup.sh ] ; then
-            ../setup.sh
-        fi
+      # NB: for some packages, this might recreate the venv...
+      if [ -x ../setup.sh ] ; then
+          ../setup.sh
       fi
 
       # ensure we have prunepytest installed
@@ -83,21 +88,35 @@ for repo in repos/${1:-*} ; do
         runpy=(${python} -m)
       fi
 
-      # save graph in pre-test validation for use at test-time
-      prune_args=(--prune-graph graph.bin)
+      prune_args=()
       if [ -f "../hook.py" ] ; then
           prune_args+=(--prune-hook ../hook.py)
       fi
 
-      echo "pre-test validation"
-      "${runpy[@]}" prunepytest.validator "${prune_args[@]}"
+      if [[ "${VALIDATE:-1}" == "1" ]] ; then
+        # save graph in pre-test validation for use at test-time
+        prune_args+=(--prune-graph graph.bin)
 
-      if [[ "${PY_COVERAGE:-}" == "1" ]] ; then
-        mv cov.json cov.pretest.json
+        echo "pre-test validation"
+        "${runpy[@]}" prunepytest.validator "${prune_args[@]}"
+
+        if [[ "${PY_COVERAGE:-}" == "1" ]] ; then
+          mv cov.json cov.pretest.json
+        fi
+
+        echo "test-time validation"
+        pytest_args=(--prune --prune-no-select "${prune_args[@]}")
+        export PYTEST_ADDOPTS="${pytest_args[@]}"
+        if [ -x ../runtests.sh ] ; then
+          ../runtests.sh
+        else
+          "${runpy[@]}" pytest
+        fi
       fi
 
-      echo "test-time validation"
-      pytest_args=(--prune --prune-no-select "${prune_args[@]}")
+      echo "impact check"
+      impact_depth=${IMPACT_DEPTH:-20}
+      pytest_args=(--prune --prune-impact --prune-impact-depth "${impact_depth}" ${prune_args:+"${prune_args[@]}"})
       export PYTEST_ADDOPTS="${pytest_args[@]}"
       if [ -x ../runtests.sh ] ; then
         ../runtests.sh
