@@ -39,8 +39,8 @@ for repo in repos/${1:-*} ; do
         cd "$d"
 
         # venv setup
-        if [[ -n "${PYMINOR}" ]] ; then
-          uv venv --python 3${PYMINOR} .venv --seed
+        if [[ -n "${pymin}" ]] ; then
+          uv venv --python "3${pymin}" .venv --seed
         else
           uv venv .venv --seed
         fi
