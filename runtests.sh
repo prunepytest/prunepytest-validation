@@ -44,16 +44,11 @@ for repo in repos/${1:-*} ; do
         else
           uv venv .venv --seed
         fi
-        source .venv/bin/activate
-
-        # NB: for some packages, this might recreate the venv...
-        if [ -x ../setup.sh ] ; then
-            ../setup.sh
-        fi
       else
         cd "$d"
-        source .venv/bin/activate
       fi
+
+      source .venv/bin/activate
 
       pyver=$(${python} -c 'import sys ; print(".".join(str(v) for v in sys.version_info[0:2]))')
       pyminor=$(cut -d. -f2 <<<"$pyver")
@@ -62,6 +57,13 @@ for repo in repos/${1:-*} ; do
         echo "incompatible python version ($pyver). skipping..."
         # exit subshell, so jump to next iteration of the loop
         exit
+      fi
+
+      if [[ "${DIRTY:-}" != "1" ]] ; then
+        # NB: for some packages, this might recreate the venv...
+        if [ -x ../setup.sh ] ; then
+            ../setup.sh
+        fi
       fi
 
       # ensure we have prunepytest installed
