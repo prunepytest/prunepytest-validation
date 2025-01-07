@@ -26,6 +26,7 @@ for repo in repos/${1:-*} ; do
 
     # use subshell to avoid cross-contamination
     (
+      set -e
       cd "$repo"
       d=".repo"
 
