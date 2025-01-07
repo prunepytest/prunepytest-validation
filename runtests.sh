@@ -118,8 +118,8 @@ for repo in "${repos[@]}" ; do
       fi
 
       echo "impact check"
-      impact_depth=${IMPACT_DEPTH:-50}
-      pytest_args=(--prune ${prune_args:+"${prune_args[@]}"} --prune-impact --prune-impact-depth="${impact_depth}")
+      impact_depth=${IMPACT_DEPTH:-100}
+      pytest_args=(--prune -vv ${prune_args:+"${prune_args[@]}"} --prune-impact --prune-impact-depth="${impact_depth}")
       export PYTEST_ADDOPTS="${pytest_args[@]}"
       if [ -x ../runtests.sh ] ; then
         ../runtests.sh
