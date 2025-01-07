@@ -32,3 +32,10 @@ class PandasPruneHook(DefaultHook):
             "pandas._libs.lib": {"pandas._libs.tslibs"},
         }
 
+    def filter_irrelevant_files(self, files: AbstractSet[str]) -> AbstractSet[str]:
+        return {
+            f for f in files
+            if not (
+                f.startswith("doc/") or f.startswith("web/")
+            )
+        }
