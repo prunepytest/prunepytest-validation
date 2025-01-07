@@ -44,7 +44,10 @@ for repo in "${repos[@]}" ; do
 
         # quick repo clone
         rm -rf "$d"
-        git clone --filter=tree:0 --single-branch "${clone_args[@]}" "$d"
+        # NB: tree-less clone works fine for validation but gets extremely slow
+        # for impact analysis... stick to blob-less
+        # --filter=tree:0
+        git clone --filter=blob:none --single-branch "${clone_args[@]}" "$d"
 
         cd "$d"
 
@@ -90,12 +93,12 @@ for repo in "${repos[@]}" ; do
 
       prune_args=()
       if [ -f "../hook.py" ] ; then
-          prune_args+=(--prune-hook ../hook.py)
+          prune_args+=(--prune-hook=../hook.py)
       fi
 
       if [[ "${VALIDATE:-1}" == "1" ]] ; then
         # save graph in pre-test validation for use at test-time
-        prune_args+=(--prune-graph graph.bin)
+        prune_args+=(--prune-graph=graph.bin)
 
         echo "pre-test validation"
         "${runpy[@]}" prunepytest.validator "${prune_args[@]}"
@@ -115,8 +118,8 @@ for repo in "${repos[@]}" ; do
       fi
 
       echo "impact check"
-      impact_depth=${IMPACT_DEPTH:-20}
-      pytest_args=(--prune --prune-impact --prune-impact-depth "${impact_depth}" ${prune_args:+"${prune_args[@]}"})
+      impact_depth=${IMPACT_DEPTH:-50}
+      pytest_args=(--prune ${prune_args:+"${prune_args[@]}"} --prune-impact --prune-impact-depth="${impact_depth}")
       export PYTEST_ADDOPTS="${pytest_args[@]}"
       if [ -x ../runtests.sh ] ; then
         ../runtests.sh
