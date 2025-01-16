@@ -73,6 +73,9 @@ for repo in "${repos[@]}" ; do
       # NB: for some packages, this might recreate the venv...
       if [ -x ../setup.sh ] ; then
           ../setup.sh
+      else
+        uv pip install -e .
+        uv pip install pytest
       fi
 
       # ensure we have prunepytest installed
